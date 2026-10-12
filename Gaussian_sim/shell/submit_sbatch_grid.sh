@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  mercury_submit_sbatch_grid.sh [options]
+  submit_sbatch_grid.sh [options]
 
 Submit the Gaussian approximation grid as separate Slurm jobs.
 
@@ -12,14 +12,14 @@ Options:
   --threads T           CPUs per Slurm task. Default: 16
   --mem MEM             Slurm memory request. Default: 56G
   --time TIME           Slurm time limit. Default: 7-00:00:00
-  --account ACCOUNT     Slurm account. Default: basic
-  --qos QOS             Slurm QOS. Default: clay
-  --partition PARTITION Slurm partition. Default: standard
+  --account ACCOUNT     Optional Slurm account.
+  --qos QOS             Optional Slurm QOS.
+  --partition PARTITION Optional Slurm partition.
   --b B                 Graph bandwidth. Default: 4
   --n-mc N              Monte Carlo replications. Default: 200
   --b-gauss B           Gaussian target draws. Default: 2000
   --seed SEED           RNG seed. Default: 123
-  --rscript PATH        Rscript path. Default: /apps/R-4.4.3/bin/Rscript
+  --rscript PATH        Rscript command or path. Default: Rscript
   --n-list VALUES       Space-delimited n list in quotes. Default: "200 400 800"
   --p-list VALUES       Space-delimited p list in quotes. Default: "2000 4000 8000"
   --beta-list VALUES    Space-delimited beta list in quotes. Default: "2 0.9 0.55"
@@ -33,14 +33,14 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 threads="16"
 mem="56G"
 time_limit="7-00:00:00"
-account="basic"
-qos="clay"
-partition="standard"
+account="${SLURM_ACCOUNT:-}"
+qos="${SLURM_QOS:-}"
+partition="${SLURM_PARTITION:-}"
 b="4"
 n_mc="200"
 b_gauss="2000"
 seed="123"
-rscript_path="/apps/R-4.4.3/bin/Rscript"
+rscript_path="${RSCRIPT_PATH:-Rscript}"
 n_list="200 400 800"
 p_list="2000 4000 8000"
 beta_list="2 0.9 0.55"
@@ -132,6 +132,11 @@ if [[ "${overwrite}" != "true" ]]; then
   overwrite_arg="--no-overwrite"
 fi
 
+slurm_site_opts=("--chdir=${PROJECT_ROOT}")
+[[ -n "${account}" ]] && slurm_site_opts+=("--account=${account}")
+[[ -n "${qos}" ]] && slurm_site_opts+=("--qos=${qos}")
+[[ -n "${partition}" ]] && slurm_site_opts+=("--partition=${partition}")
+
 for n in ${n_list}; do
   for p in ${p_list}; do
     for beta in ${beta_list}; do
@@ -144,13 +149,10 @@ for n in ${n_list}; do
           --cpus-per-task="${threads}" \
           --mem="${mem}" \
           --time="${time_limit}" \
-          --account="${account}" \
-          --qos="${qos}" \
-          --partition="${partition}" \
-          --chdir="${PROJECT_ROOT}" \
+          "${slurm_site_opts[@]}" \
           --export="ALL,GAUSSIAN_SIM_ROOT=${PROJECT_ROOT},RSCRIPT_PATH=${rscript_path}" \
           --output="${slurm_out}" \
-          "${SCRIPT_DIR}/mercury_sbatch_job.sh" \
+          "${SCRIPT_DIR}/sbatch_job.sh" \
           --n "${n}" \
           --p "${p}" \
           --beta "${beta}" \
@@ -163,7 +165,7 @@ for n in ${n_list}; do
       )"
       slurm_job_id="$(awk '{print $4}' <<< "${submit_output}")"
       printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
-        "$(date -Is)" "${slurm_job_id}" "${job_name}" "${n}" "${p}" "${b}" "${beta}" \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${slurm_job_id}" "${job_name}" "${n}" "${p}" "${b}" "${beta}" \
         "${n_mc}" "${b_gauss}" "${seed}" "${threads}" "${mem}" "${time_limit}" \
         "${account}" "${qos}" "${partition}" "${slurm_out//%j/${slurm_job_id}}" >> "${manifest_csv}"
       echo "${submit_output} ${job_name}"

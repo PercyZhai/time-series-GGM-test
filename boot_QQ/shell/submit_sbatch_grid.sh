@@ -4,9 +4,9 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  mercury_submit_sbatch_grid.sh [options]
+  submit_sbatch_grid.sh [options]
 
-Submit the block-bootstrap QQ grid as separate Slurm jobs on Mercury.
+Submit the block-bootstrap QQ grid as separate Slurm jobs.
 
 Options:
   --cores C             CPUs per Slurm task and MC workers. Default: 16
@@ -17,15 +17,15 @@ Options:
   --mem-p4000 MEM       Memory for p=4000 jobs. Default: 48G
   --mem-p8000 MEM       Memory for p=8000 jobs. Default: 64G
   --time TIME           Slurm time limit. Default: 7-00:00:00
-  --account ACCOUNT     Slurm account. Default: phd
-  --qos QOS             Slurm QOS. Default: bronze
-  --partition PARTITION Slurm partition. Default: standard
+  --account ACCOUNT     Optional Slurm account.
+  --qos QOS             Optional Slurm QOS.
+  --partition PARTITION Optional Slurm partition.
   --b B                 Graph bandwidth. Default: 4
   --n-mc N              Monte Carlo replications. Default: 200
   --alpha A             Bootstrap test level. Default: 0.10
   --seed SEED           RNG seed. Default: 123
   --ntrunc-mode MODE    Truncation mode. Default: n2
-  --rscript PATH        Rscript path. Default: /apps/R-4.4.3/bin/Rscript
+  --rscript PATH        Rscript command or path. Default: Rscript
   --n-list VALUES       Space-delimited n list in quotes. Default: "200 400 800"
   --p-list VALUES       Space-delimited p list in quotes. Default: "2000 4000 8000"
   --beta-list VALUES    Space-delimited beta list in quotes. Default: "2 0.9 0.55"
@@ -44,15 +44,15 @@ mem_p2000="32G"
 mem_p4000="48G"
 mem_p8000="64G"
 time_limit="7-00:00:00"
-account="phd"
-qos="bronze"
-partition="standard"
+account="${SLURM_ACCOUNT:-}"
+qos="${SLURM_QOS:-}"
+partition="${SLURM_PARTITION:-}"
 b="4"
 n_mc="200"
 alpha="0.10"
 seed="123"
 ntrunc_mode="n2"
-rscript_path="/apps/R-4.4.3/bin/Rscript"
+rscript_path="${RSCRIPT_PATH:-Rscript}"
 n_list="200 400 800"
 p_list="2000 4000 8000"
 beta_list="2 0.9 0.55"
@@ -168,6 +168,11 @@ if [[ "${overwrite}" != "true" ]]; then
   overwrite_arg="--no-overwrite"
 fi
 
+slurm_site_opts=("--chdir=${PROJECT_ROOT}")
+[[ -n "${account}" ]] && slurm_site_opts+=("--account=${account}")
+[[ -n "${qos}" ]] && slurm_site_opts+=("--qos=${qos}")
+[[ -n "${partition}" ]] && slurm_site_opts+=("--partition=${partition}")
+
 choose_mem() {
   local p_value="$1"
   if [[ -n "${mem}" ]]; then
@@ -196,13 +201,10 @@ for n in ${n_list}; do
           --cpus-per-task="${cores}" \
           --mem="${job_mem}" \
           --time="${time_limit}" \
-          --account="${account}" \
-          --qos="${qos}" \
-          --partition="${partition}" \
-          --chdir="${PROJECT_ROOT}" \
+          "${slurm_site_opts[@]}" \
           --export="ALL,BOOT_QQ_ROOT=${PROJECT_ROOT},RSCRIPT_PATH=${rscript_path},BLAS_THREADS=${blas_threads}" \
           --output="${slurm_out}" \
-          "${SCRIPT_DIR}/mercury_sbatch_job.sh" \
+          "${SCRIPT_DIR}/sbatch_job.sh" \
           --n "${n}" \
           --p "${p}" \
           --beta "${beta}" \
@@ -219,7 +221,7 @@ for n in ${n_list}; do
       )"
       slurm_job_id="$(awk '{print $4}' <<< "${submit_output}")"
       printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
-        "$(date -Is)" "${slurm_job_id}" "${job_name}" "${n}" "${p}" "${b}" "${beta}" \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${slurm_job_id}" "${job_name}" "${n}" "${p}" "${b}" "${beta}" \
         "${n_mc}" "${alpha}" "${seed}" "${cores}" "${fft_cores}" "${blas_threads}" "${job_mem}" "${time_limit}" \
         "${account}" "${qos}" "${partition}" "${slurm_out//%j/${slurm_job_id}}" >> "${manifest_csv}"
       echo "${submit_output} ${job_name}"

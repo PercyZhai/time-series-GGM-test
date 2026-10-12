@@ -1,9 +1,8 @@
-# Generated results, local data, and pulled run snapshots
+# Generated results and local data
 **/Results/
 **/results/
 **/data/
 **/processed_fMRI_data/
-mercury_pull_*/
 *.rds
 *.RDS
 *.RData

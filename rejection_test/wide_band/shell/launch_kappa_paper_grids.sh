@@ -2,8 +2,7 @@
 set -euo pipefail
 
 # Canonical launcher for the kappa grids reported in the paper tables.
-# It intentionally includes only the m values shown in
-# Results/tables/FOUR_KAPPA_REJECTION_TABLES_WITH_SD_20260504.md.
+# It intentionally includes only the m values shown in the paper tables.
 
 ROOT="${TGG_WIDEBAND_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 RESULTS="${ROOT}/Results/raw"
@@ -14,6 +13,7 @@ QUEUE_SESSION="${TGG_QUEUE_SESSION:-tgg_kappa_paper_grids_queue}"
 QUEUE_LOG="${LOG_DIR}/${QUEUE_SESSION}.log"
 WORKERS="${WORKERS:-4}"
 SCRIPT_PATH="${ROOT}/shell/launch_kappa_paper_grids.sh"
+TGG_PYTHON="$(command -v "${TGG_PYTHON:-python3}")"
 
 mkdir -p "${RESULTS}" "${LOG_DIR}" "${EDGE_DIR}"
 
@@ -23,23 +23,6 @@ timestamp() {
 
 log() {
   echo "[$(timestamp)] $*" | tee -a "${QUEUE_LOG}"
-}
-
-activate_python_env() {
-  if [ -n "${TGG_WIDEBAND_ENV_CMD:-}" ]; then
-    eval "${TGG_WIDEBAND_ENV_CMD}"
-  elif [ -f "${ROOT}/.venv_gpu/bin/activate" ]; then
-    # wugroup-style local virtual environment.
-    # shellcheck disable=SC1091
-    source "${ROOT}/.venv_gpu/bin/activate"
-  elif [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then
-    # percyland-style conda environment.
-    # shellcheck disable=SC1091
-    source "${HOME}/miniconda3/etc/profile.d/conda.sh"
-    conda activate research
-  else
-    log "No virtual environment activation hook found; using current Python."
-  fi
 }
 
 start_controller_if_needed() {
@@ -54,7 +37,7 @@ start_controller_if_needed() {
   fi
 
   tmux new-session -d -s "${QUEUE_SESSION}" \
-    "bash -lc 'IN_TMUX_CONTROLLER=1 TGG_WIDEBAND_ROOT=${ROOT@Q} WORKERS=${WORKERS@Q} ${SCRIPT_PATH@Q}' > ${QUEUE_LOG@Q} 2>&1"
+    "bash -lc 'IN_TMUX_CONTROLLER=1 TGG_WIDEBAND_ROOT=${ROOT@Q} TGG_PYTHON=${TGG_PYTHON@Q} WORKERS=${WORKERS@Q} ${SCRIPT_PATH@Q}' > ${QUEUE_LOG@Q} 2>&1"
   echo "Started controller ${QUEUE_SESSION}; log=${QUEUE_LOG}"
   exit 0
 }
@@ -62,9 +45,7 @@ start_controller_if_needed() {
 write_edge_files() {
   log "Preparing nested edge-prefix files outside Results/raw."
   cd "${ROOT}/scripts"
-  activate_python_env
-
-  python - <<'PY'
+  "${TGG_PYTHON}" - <<'PY'
 from pathlib import Path
 import run_rejection_test_gpu as g
 
@@ -162,14 +143,13 @@ start_workers() {
       continue
     fi
     tmux new-session -d -s "${session}" \
-      "bash -lc 'IN_WORKER=1 TGG_WIDEBAND_ROOT=${ROOT@Q} WORKERS=${WORKERS@Q} WORKER_OFFSET=${off@Q} ${SCRIPT_PATH@Q} worker' > ${log_file@Q} 2>&1"
+      "bash -lc 'IN_WORKER=1 TGG_WIDEBAND_ROOT=${ROOT@Q} TGG_PYTHON=${TGG_PYTHON@Q} WORKERS=${WORKERS@Q} WORKER_OFFSET=${off@Q} ${SCRIPT_PATH@Q} worker' > ${log_file@Q} 2>&1"
     log "Started ${session}; log=${log_file}"
   done
 }
 
 worker_main() {
   cd "${ROOT}"
-  activate_python_env
   local off="${WORKER_OFFSET:?WORKER_OFFSET is required}"
   local workers="${WORKERS:?WORKERS is required}"
 
@@ -180,7 +160,7 @@ worker_main() {
     fi
     mkdir -p "${out_dir}"
     echo "[$(timestamp)] worker=${off} job=${job_id} label=${label}"
-    python scripts/run_rejection_test_gpu.py \
+    "${TGG_PYTHON}" scripts/run_rejection_test_gpu.py \
       --n "${n}" --p "${p}" --beta "${beta}" --s0 10 --epochs 200 --alpha 0.10 \
       --seed 101 --batch_epochs 5 --block_length "${block_len}" --gpu_chunk_cols 4 \
       --diag_mode strict --signal_mode kappa \
@@ -190,8 +170,6 @@ worker_main() {
       --extra_edges_csv "${edge_file}" \
       --run_label "paper_w${off}_job${job_id}_${label}" \
       --out_dir "${out_dir}"
-    # Keep Results/raw as a curated per-cell archive.
-    find "${out_dir}" -maxdepth 1 -type f -name 'gpu_grid_summary_*' -delete
   done
 }
 

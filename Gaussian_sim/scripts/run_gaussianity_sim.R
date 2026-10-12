@@ -375,6 +375,7 @@ main <- function() {
     }
 
     base_name <- config_tag(config$n, config$p, config$b, config$beta)
+    config_summary_rows <- list()
     for (comparison in comparisons) {
       summary_row <- summarize_comparison(
         n = config$n,
@@ -437,7 +438,14 @@ main <- function() {
         output_path = cdf_path
       )
       summary_rows[[length(summary_rows) + 1L]] <- summary_row
+      config_summary_rows[[length(config_summary_rows) + 1L]] <- summary_row
     }
+
+    write.csv(
+      rows_to_data_frame(config_summary_rows),
+      file.path(results_paths$tables, sprintf("summary_%s.csv", base_name)),
+      row.names = FALSE
+    )
 
     total_fallback_count <- total_fallback_count + fallback_count
     completed_configs <- completed_configs + 1L
@@ -455,11 +463,6 @@ main <- function() {
     close(config_pb)
   }
 
-  if (length(summary_rows) > 0) {
-    summary_path <- file.path(results_paths$tables, "gaussianity_summary.csv")
-    append_summary_rows(summary_path, summary_rows)
-  }
-
   ended_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z")
   run_log_lines <- c(
     run_log_lines,
@@ -468,7 +471,7 @@ main <- function() {
     sprintf("Completed configurations: %d", completed_configs),
     sprintf("Skipped configurations: %d", skipped_configs),
     sprintf("Total fallback count: %d", total_fallback_count),
-    sprintf("Summary CSV: %s", file.path(results_paths$tables, "gaussianity_summary.csv"))
+    sprintf("Per-cell summaries: %s", results_paths$tables)
   )
   write_text_file(
     file.path(results_paths$logs, sprintf("run_log_%s.txt", timestamp)),

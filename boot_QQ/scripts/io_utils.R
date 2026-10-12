@@ -142,23 +142,3 @@ save_rds_file <- function(path, object, overwrite = FALSE) {
   }
   saveRDS(object, path)
 }
-
-append_rows_csv <- function(csv_path, rows, key_columns = NULL) {
-  new_df <- do.call(rbind, lapply(rows, function(row) {
-    data.frame(row, stringsAsFactors = FALSE, check.names = FALSE)
-  }))
-
-  if (file.exists(csv_path)) {
-    old_df <- read.csv(csv_path, stringsAsFactors = FALSE, check.names = FALSE)
-    combined <- rbind(old_df, new_df)
-  } else {
-    combined <- new_df
-  }
-
-  if (!is.null(key_columns)) {
-    key <- do.call(paste, c(combined[, key_columns, drop = FALSE], sep = "|"))
-    combined <- combined[!duplicated(key, fromLast = TRUE), , drop = FALSE]
-  }
-
-  write.csv(combined, csv_path, row.names = FALSE)
-}

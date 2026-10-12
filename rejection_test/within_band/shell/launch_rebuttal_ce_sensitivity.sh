@@ -26,7 +26,7 @@ run_cell() {
   local out_dir="${OUT_BASE}/${tag}"
 
   mkdir -p "${out_dir}"
-  python "${PYTHON_SCRIPT}" \
+  python3 "${PYTHON_SCRIPT}" \
     --regime_grid "${REGIME_GRID}" \
     --s0 10 \
     --theta0 1.0 \

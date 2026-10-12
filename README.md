@@ -1,20 +1,19 @@
-# TGG experiments — code release
+# Time-series GGM experiments
 
-Code for *High-dimensional Gaussian Graphical Model Testing for Long-Memory Time Series* and its rebuttal experiments. This branch contains source and launch scripts only. Datasets, generated samples, figures, tables, and logs remain in the authors' local copy and are not distributed here.
+Code for *High-dimensional Gaussian Graphical Model Testing for Long-Memory Time Series*, including the CE tuning checks discussed in the rebuttal. Generated data, fMRI inputs, figures, tables, and logs are excluded. All outputs are written beneath ignored `Results/` directories.
 
-| Directory | Experiment | Main entry point |
+| Directory | Paper result | Run |
 | --- | --- | --- |
-| `Gaussian_sim/` | Gaussian approximation under the null | `scripts/run_gaussianity_sim.R` |
-| `boot_QQ/` | Block bootstrap QQ calibration | `scripts/run_boot_qq.R` |
-| `rejection_test/wide_band/` | Off-band edge rejection (κ grids) | `shell/launch_kappa_paper_grids.sh` |
-| `rejection_test/within_band/` | Consistency-empowered within-band weakening and rebuttal sensitivity | `scripts/run_withinband_weakening_ce_v2_gpu.py` |
-| `sherlock/` | Sherlock movie/recall two-sample analysis and long-memory diagnostics | `scripts/run_omega_compute.R` |
+| `Gaussian_sim/` | Null Gaussian approximation, QQ plots and distance tables | `bash shell/submit_sbatch_grid.sh` or a direct R cell |
+| `boot_QQ/` | Null block-bootstrap QQ plots and calibration | `bash shell/submit_sbatch_grid.sh` or a direct R cell |
+| `rejection_test/wide_band/` | Four off-band κ rejection tables | `bash shell/launch_kappa_paper_grids.sh` |
+| `rejection_test/within_band/` | Within-band CE rejection table and rebuttal sensitivity | `bash shell/launch_paper_table.sh` and rebuttal launchers |
+| `sherlock/` | fMRI graph comparison and long-memory diagnostics | Four R scripts in `scripts/` |
 
-## Requirements
+## Environment
 
-- R for the null experiments; `boot_QQ` also uses `matrixStats`. The Sherlock pipeline uses `Matrix`, `data.table`, `future`, and `future.apply`.
-- Python with NumPy and a CuPy build compatible with the installed CUDA runtime for the GPU rejection experiments. Launchers use `tmux`; the null-grid launchers use Slurm on a cluster.
+- The Gaussian and bootstrap experiments use R; the bootstrap runner can use `matrixStats`. The reported cluster runs used R 4.4.3. Each directory's README gives a direct command and the full parameter grid. The Slurm wrappers require a Slurm installation. Set `SLURM_ACCOUNT`, `SLURM_QOS`, and `SLURM_PARTITION` only if your cluster requires them; `RSCRIPT_PATH` can select a specific R binary.
+- The two rejection experiments require Python, NumPy, a CUDA-compatible CuPy installation, and a CUDA GPU. Recorded per-cell results used NumPy 2.4.4 and CuPy 14.0.1 with Python 3.11 or 3.12. Activate an appropriate environment before launching; the wide-band script also accepts `TGG_PYTHON=/path/to/python3`. The wide-band launcher requires `tmux`.
+- Sherlock requires R packages `Matrix`, `data.table`, `future`, and `future.apply`, plus separately obtained, processed 268-ROI input data. See [`sherlock/README.md`](sherlock/README.md) for the exact file contract and data source.
 
-Each script writes into an experiment-local `Results/` directory, which Git ignores. For Sherlock, place the independently obtained input files in `sherlock/processed_fMRI_data/` before running. See each experiment's README for commands and the parameter grids. The rebuttal CE launchers are `rejection_test/within_band/shell/launch_rebuttal_ce_sensitivity.sh` and `launch_rebuttal_ce_theory_delta.sh`; they use seed 303 and write under `Results/raw/`.
-
-The code reflects the local working versions of the Gaussian and bootstrap runners, including the changes made after the original TGG archive commit. Historical run snapshots under `mercury_pull_2026-09-28/` and legacy helpers are outside the paper/rebuttal code release.
+The simulation code creates its own synthetic data. For each table, the directory README gives the report builder that converts the ignored per-cell outputs to the published rows. The Sherlock analysis is **not reproducible from this repository alone**: the source-to-268-ROI preprocessing procedure and processed inputs are not included. Full paper reproduction also requires the specified compute environments and full-size runs, which this release has not verified on a fresh machine.

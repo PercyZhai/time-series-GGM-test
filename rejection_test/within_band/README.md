@@ -1,9 +1,13 @@
-# Within-band consistency-empowered experiment
+# Within-band CE experiment
 
-GPU/CuPy implementation for the within-band weakening experiment in Section 4.2 and the rebuttal's CE tuning sensitivity. The runner `scripts/run_withinband_weakening_ce_v2_gpu.py` imports DGP/bootstrap utilities from `../wide_band/scripts/run_rejection_test_gpu.py`. Requires NumPy and CUDA-compatible CuPy.
+GPU/CuPy implementation for the four-regime within-band weakening table in Section 4.2 and the rebuttal's CE tuning checks. The runner imports simulation utilities from `../wide_band/scripts/run_rejection_test_gpu.py`.
 
-The paper grid uses `n,p,beta,block_length` values `(2000,800,2,160)`, `(2000,800,0.9,238)`, `(800,2000,2,86)`, `(800,2000,0.9,86)` with `theta0=rho=1`, `C_delta=0.5`, and constant `delta_n=0.05`. Run `bash shell/launch_wugroup_withinband_ce_v2_grid.sh` in a `tmux`-capable environment. The null calibration launcher is `shell/launch_wugroup_withinband_ce_v2_null_delta_sweep.sh`.
+From this directory, activate a CUDA-compatible Python environment, then run:
 
-For the rebuttal's `(delta_n,C_delta)` sensitivity grid, run `bash shell/launch_rebuttal_ce_sensitivity.sh`; for the theory-scaled threshold cells, run `bash shell/launch_rebuttal_ce_theory_delta.sh`. Both use seed 303. The second script's default `queue` mode waits for sensitivity worker sessions to finish; use `launch` to start directly.
+```bash
+bash shell/launch_paper_table.sh
+```
 
-Launchers locate the repository from their own paths and optionally source `rejection_test/.venv_gpu/bin/activate`. Otherwise they use the current Python environment. All outputs go to ignored `Results/`; report builders in `scripts/` read those local outputs.
+This runs the 16 published combinations of four `(n,p,beta,block_length)` regimes and `(eta,chi)={(0,0),(0.1,0.5),(0.3,1),(0.5,1)}`. It uses `theta0=rho=1`, `delta_n=0.05`, `C_delta=0.5`, 200 epochs, and seed 101. Results and the table are generated under ignored `Results/`. To rebuild the paper table from saved per-cell JSON, use `python3 scripts/build_paper_table.py`.
+
+The rebuttal discusses sensitivity to `delta_n` and `C_delta`. `bash shell/launch_rebuttal_ce_sensitivity.sh` runs the nine parameter pairs on four regimes under H0 and one H1 alternative. `bash shell/launch_rebuttal_ce_theory_delta.sh launch` runs four theory-scaled threshold cells under each state; its default `queue` mode waits for sensitivity sessions to finish. These launchers use `tmux`, seed 303, and write under ignored `Results/raw/`. They will use `rejection_test/.venv_gpu` when present; otherwise Python 3 must be available on `PATH`.

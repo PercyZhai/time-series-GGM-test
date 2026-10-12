@@ -12,7 +12,7 @@
 #
 # Brackets chain: alpha=0.05 boundary -> lower bound for alpha=0.025; etc.
 #
-# Run from the sherlock folder on percyland:
+# Run from the sherlock folder:
 #   N_WORKERS=17 Rscript scripts/run_omega_alpha_grid.R
 
 Sys.setenv(

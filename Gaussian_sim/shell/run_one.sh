@@ -4,19 +4,18 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  mercury_run_one.sh --n N --p P --beta BETA [options]
+  run_one.sh --n N --p P --beta BETA [options]
 
 Options:
   --b B                 Graph bandwidth. Default: 4
   --n-mc N              Monte Carlo replications. Default: 200
-  --alpha A             Bootstrap test level. Default: 0.10
+  --b-gauss B           Gaussian target draws. Default: 2000
   --seed SEED           RNG seed. Default: 123
-  --cores C             Monte Carlo worker processes. Default: 16
+  --cores C             Monte Carlo/target worker processes. Default: 16
   --fft-cores C         Coordinate FFT worker processes. Default: 8
   --blas-threads T      BLAS/OpenMP threads per worker. Default: 1
-  --ntrunc-mode MODE    Truncation mode passed to R. Default: n2
   --n-trunc N           Optional truncation length override.
-  --rscript PATH        Rscript path. Default: /apps/R-4.4.3/bin/Rscript
+  --rscript PATH        Rscript command or path. Default: Rscript
   --log PATH            Optional log path. Default: Results/logs/job_*.log
   --overwrite           Pass --overwrite to the R runner.
 USAGE
@@ -30,14 +29,13 @@ p=""
 beta=""
 b="4"
 n_mc="200"
-alpha="0.10"
+b_gauss="2000"
 seed="123"
 cores="16"
 fft_cores="8"
 blas_threads="1"
-ntrunc_mode="n2"
 n_trunc=""
-rscript_path="/apps/R-4.4.3/bin/Rscript"
+rscript_path="${RSCRIPT_PATH:-Rscript}"
 run_log=""
 overwrite="false"
 
@@ -59,19 +57,19 @@ while [[ $# -gt 0 ]]; do
       b="$2"
       shift 2
       ;;
-    --n-mc|--mc)
+    --n-mc)
       n_mc="$2"
       shift 2
       ;;
-    --alpha)
-      alpha="$2"
+    --b-gauss)
+      b_gauss="$2"
       shift 2
       ;;
     --seed)
       seed="$2"
       shift 2
       ;;
-    --cores)
+    --threads|--cores)
       cores="$2"
       shift 2
       ;;
@@ -81,10 +79,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --blas-threads)
       blas_threads="$2"
-      shift 2
-      ;;
-    --ntrunc-mode)
-      ntrunc_mode="$2"
       shift 2
       ;;
     --n-trunc)
@@ -121,8 +115,8 @@ if [[ -z "${n}" || -z "${p}" || -z "${beta}" ]]; then
   exit 2
 fi
 
-if [[ ! -x "${rscript_path}" ]]; then
-  echo "Rscript not executable: ${rscript_path}" >&2
+if ! command -v "${rscript_path}" >/dev/null 2>&1; then
+  echo "Rscript not found: ${rscript_path}" >&2
   exit 127
 fi
 
@@ -142,23 +136,21 @@ export VECLIB_MAXIMUM_THREADS="${blas_threads}"
 export NUMEXPR_NUM_THREADS="${blas_threads}"
 
 cmd=(
-  "${rscript_path}" "${PROJECT_ROOT}/scripts/run_boot_qq.R"
-  --n "${n}"
-  --p "${p}"
-  --beta "${beta}"
-  --b "${b}"
-  --mc "${n_mc}"
-  --alpha "${alpha}"
+  "${rscript_path}" "${PROJECT_ROOT}/scripts/run_gaussianity_sim.R"
+  --preset custom
+  --n-list "${n}"
+  --p-list "${p}"
+  --beta-list "${beta}"
+  --b-list "${b}"
+  --n-mc "${n_mc}"
+  --b-gauss "${b_gauss}"
   --seed "${seed}"
   --cores "${cores}"
   --fft-cores "${fft_cores}"
-  --progress-every "${cores}"
 )
 
 if [[ -n "${n_trunc}" ]]; then
   cmd+=(--n-trunc "${n_trunc}")
-else
-  cmd+=(--ntrunc-mode "${ntrunc_mode}")
 fi
 
 if [[ "${overwrite}" == "true" ]]; then
@@ -168,7 +160,7 @@ fi
 finish() {
   local status=$?
   {
-    echo "end_iso=$(date -Is)"
+    echo "end_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "exit_status=${status}"
   } >> "${run_log}"
   exit "${status}"
@@ -177,7 +169,7 @@ trap finish EXIT
 
 {
   echo "job_tag=n${n}_p${p}_b${b}_beta${beta}"
-  echo "start_iso=$(date -Is)"
+  echo "start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "host=$(hostname)"
   echo "cwd=${PROJECT_ROOT}"
   echo "rscript=${rscript_path}"
@@ -189,14 +181,13 @@ trap finish EXIT
   echo "b=${b}"
   echo "beta=${beta}"
   echo "n_mc=${n_mc}"
-  echo "alpha=${alpha}"
+  echo "b_gauss=${b_gauss}"
   echo "seed=${seed}"
-  echo "ntrunc_mode=${ntrunc_mode}"
   echo "n_trunc=${n_trunc:-default}"
   echo "overwrite=${overwrite}"
-  free -h || true
+  if command -v free >/dev/null 2>&1; then free -h; fi
   echo "command=${cmd[*]}"
-  /usr/bin/time -p "${cmd[@]}"
+  time -p "${cmd[@]}"
   r_status=$?
   echo "rscript_status=${r_status}"
   exit "${r_status}"

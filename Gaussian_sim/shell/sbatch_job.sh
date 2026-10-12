@@ -2,13 +2,13 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
+#SBATCH --mem=56G
 #SBATCH --time=7-00:00:00
 
 set -euo pipefail
 
-if [[ -n "${BOOT_QQ_ROOT:-}" ]]; then
-  PROJECT_ROOT="${BOOT_QQ_ROOT}"
+if [[ -n "${GAUSSIAN_SIM_ROOT:-}" ]]; then
+  PROJECT_ROOT="${GAUSSIAN_SIM_ROOT}"
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -17,14 +17,13 @@ SHELL_DIR="${PROJECT_ROOT}/shell"
 
 cores="${SLURM_CPUS_PER_TASK:-16}"
 fft_cores="8"
-blas_threads="${BLAS_THREADS:-1}"
-rscript_path="${RSCRIPT_PATH:-/apps/R-4.4.3/bin/Rscript}"
+blas_threads="1"
+rscript_path="${RSCRIPT_PATH:-Rscript}"
 
 b="4"
 n_mc="200"
-alpha="0.10"
+b_gauss="2000"
 seed="123"
-ntrunc_mode="n2"
 overwrite_arg="--overwrite"
 
 args=()
@@ -38,12 +37,12 @@ while [[ $# -gt 0 ]]; do
       b="$2"
       shift 2
       ;;
-    --n-mc|--mc)
+    --n-mc)
       n_mc="$2"
       shift 2
       ;;
-    --alpha)
-      alpha="$2"
+    --b-gauss)
+      b_gauss="$2"
       shift 2
       ;;
     --seed)
@@ -60,10 +59,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --blas-threads)
       blas_threads="$2"
-      shift 2
-      ;;
-    --ntrunc-mode)
-      ntrunc_mode="$2"
       shift 2
       ;;
     --rscript)
@@ -111,18 +106,17 @@ echo "slurm_nodelist=${SLURM_NODELIST:-unknown}"
 echo "slurm_cpus_per_task=${cores}"
 echo "job_log=${job_log}"
 
-bash "${SHELL_DIR}/mercury_run_one.sh" \
+bash "${SHELL_DIR}/run_one.sh" \
   --n "${n}" \
   --p "${p}" \
   --beta "${beta}" \
   --b "${b}" \
   --n-mc "${n_mc}" \
-  --alpha "${alpha}" \
+  --b-gauss "${b_gauss}" \
   --seed "${seed}" \
   --cores "${cores}" \
   --fft-cores "${fft_cores}" \
   --blas-threads "${blas_threads}" \
-  --ntrunc-mode "${ntrunc_mode}" \
   --rscript "${rscript_path}" \
   --log "${job_log}" \
   ${overwrite_arg}

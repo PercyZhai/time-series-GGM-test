@@ -10,7 +10,7 @@
 # Reuses Omega matrices saved in omega_matrices/subject_XX_omega.rds and the
 # initial bracket from candidate_path.csv (both produced by run_omega_compute.R).
 #
-# Run from the sherlock folder on percyland:
+# Run from the sherlock folder:
 #   N_WORKERS=17 Rscript scripts/run_omega_bisect.R
 
 Sys.setenv(

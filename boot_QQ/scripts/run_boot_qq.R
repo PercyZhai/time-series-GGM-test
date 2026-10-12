@@ -527,15 +527,6 @@ main <- function() {
     )
   }
 
-  summary_path <- file.path(results_paths$tables, "bootstrap_summary.csv")
-  if (length(summary_rows) > 0L) {
-    append_rows_csv(
-      csv_path = summary_path,
-      rows = summary_rows,
-      key_columns = c("n", "p", "b", "beta", "N_mc", "N_trunc", "alpha", "block_length", "seed")
-    )
-  }
-
   ended_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z")
   run_log_lines <- c(
     run_log_lines,
@@ -543,7 +534,7 @@ main <- function() {
     sprintf("Completed configurations: %d", completed_configs),
     sprintf("Skipped configurations: %d", skipped_configs),
     sprintf("Total fallback count: %d", total_fallback_count),
-    sprintf("Summary CSV: %s", summary_path)
+    sprintf("Per-cell summaries: %s", results_paths$tables)
   )
   run_log_path <- file.path(results_paths$logs, sprintf("run_log_%s.txt", timestamp))
   write_text_file(run_log_path, paste(run_log_lines, collapse = "\n"))

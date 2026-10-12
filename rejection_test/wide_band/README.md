@@ -1,11 +1,10 @@
 # Off-band rejection experiment
 
-GPU/CuPy implementation for the four κ tables in Section 4.2 of the paper. `scripts/run_rejection_test_gpu.py` contains the DGP, bootstrap, and rejection-rate calculation. `shell/launch_kappa_paper_grids.sh` runs the reported `(n,p,beta,m,κ)` grid and preserves the nested edge-list seeds used in the paper.
-
-From this directory, run:
+GPU/CuPy implementation for the four κ tables in Section 4.2. From this directory, with a CUDA-compatible Python environment activated, run:
 
 ```bash
 bash shell/launch_kappa_paper_grids.sh
+python3 scripts/build_paper_tables.py
 ```
 
-The script uses `tmux` and writes data, summaries, and logs under ignored `Results/`. Set `WORKERS` to change concurrency and `TGG_WIDEBAND_ENV_CMD` to activate a Python environment. Requires NumPy and CUDA-compatible CuPy.
+The launcher uses `tmux`; it starts a controller and returns immediately. Follow progress in `Results/logs/`. `WORKERS` sets the number of worker sessions (default 4). Set `TGG_PYTHON` to a Python executable if needed. The launcher generates 120 cells with 200 epochs each, uses the paper's nested edge-list seeds, and writes per-cell files to ignored `Results/raw/`. Run the table builder after the workers finish; it checks that all 120 cells and epoch CSV files exist before writing `Results/tables/kappa_paper_tables.md`.

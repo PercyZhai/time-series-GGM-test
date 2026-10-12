@@ -26,7 +26,7 @@
 #                                         run_omega_alpha_grid.R to seed the
 #                                         bisection bracket.
 #
-# Run from the sherlock folder on percyland:
+# Run from the sherlock folder:
 #   N_WORKERS=17 Rscript scripts/run_omega_compute.R
 
 Sys.setenv(
